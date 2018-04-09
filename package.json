@@ -1,0 +1,18 @@
+{
+  "name": "web-server",
+  "version": "1.0.0",
+  "description": "CourseBook Web Server",
+  "main": "index.js",
+  "scripts": {
+    "dev": "nodemon ./src/server.js"
+  },
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.16.3",
+    "simple-node-logger": "^0.93.37"
+  },
+  "devDependencies": {
+    "nodemon": "^1.17.3"
+  }
+}
