@@ -31,7 +31,10 @@ app.get("/health", (request, response) => {
 });
 
 app.put("/register", (request, response) => {
-  logger.info("REGISTERING User")
+  logger.info("REGISTERING User");
+
+  response.status(201)
+    .send("<h1> Register request received </h1>");
 });
 
 /*
