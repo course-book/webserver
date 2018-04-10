@@ -1,10 +1,12 @@
 const express = require("express");
 const bodyParser = require("body-parser");
 const path = require("path");
+const dotenv = require("dotenv")
 const SimpleNodeLogger = require("simple-node-logger");
 const mkdirp = require("mkdirp")
 
 // Setup
+dotenv.config();
 mkdirp("./logs", (error) => {
   if (error) {
     console.log("Unable to construct logs directory");
@@ -19,6 +21,9 @@ let logger = SimpleNodeLogger.createSimpleLogger();
 const app = express();
 const port = process.env.PORT || 8080;
 
+/**
+ *  Statically send things in /build/
+ */
 app.use(express.static(path.join(__dirname, "/build"), {maxAge: "1w"}));
 
 app.use(bodyParser.json());
@@ -40,7 +45,7 @@ app.get("/health", (request, response) => {
 */
 app.put("/register", (request, response) => {
   logger.info("REGISTERING User");
-
+  // TODO: Hand off message to rabbit
   response.status(201).send("<h1> Register request received </h1>");
 });
 
@@ -56,6 +61,7 @@ const initialize = () => {
       logger.error(error);
     } else {
       logger.info(`Webserver is LIVE. ${port}`);
+      logger.info(`Rabbitmq Endpoint: ${process.env.RABBITMQ_HOST}`);
     }
   });
 }
