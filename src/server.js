@@ -1,9 +1,12 @@
 const express = require("express");
 const bodyParser = require("body-parser");
 const path = require("path");
-const dotenv = require("dotenv")
+const dotenv = require("dotenv");
+const amqp = require("amqplib");
 const SimpleNodeLogger = require("simple-node-logger");
 const mkdirp = require("mkdirp")
+
+const RabbitHandler = require("./rabbitHandler");
 
 // Setup
 dotenv.config();
@@ -17,6 +20,8 @@ mkdirp("./logs", (error) => {
 
 // Use Basic Logger. Have it override if setup completes.
 let logger = SimpleNodeLogger.createSimpleLogger();
+
+const handler = new RabbitHandler(process.env.RABBITMQ_HOST, logger);
 
 const app = express();
 const port = process.env.PORT || 8080;
@@ -45,7 +50,18 @@ app.get("/health", (request, response) => {
 */
 app.put("/register", (request, response) => {
   logger.info("REGISTERING User");
-  // TODO: Hand off message to rabbit
+  const body = request.body;
+  const username = body.username;
+  const password = body.password;
+
+  logger.info(`Registering User username=${username} password=${password}`);
+
+  const riakData = {
+    ip: request.ip,
+    action: "Registration"
+  };
+  handler.sendMessage("riak", JSON.stringify(riakData));
+  handler.sendMessage("mongo", JSON.stringify(body));
   response.status(201).send("<h1> Register request received </h1>");
 });
 
