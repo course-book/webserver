@@ -51,17 +51,26 @@ app.get("/health", (request, response) => {
 app.put("/register", (request, response) => {
   logger.info("REGISTERING User");
   const body = request.body;
+  const action = "REGISTRATION";
   const username = body.username;
   const password = body.password;
 
   logger.info(`Registering User username=${username} password=${password}`);
 
+  // TODO: Query before posting message. Is username unique?
+
   const riakData = {
     ip: request.ip,
-    action: "Registration"
+    action: action
   };
   handler.sendMessage("riak", JSON.stringify(riakData));
-  handler.sendMessage("mongo", JSON.stringify(body));
+
+  const mongoData = {
+    action: action,
+    username: username,
+    password: password
+  };
+  handler.sendMessage("mongo", JSON.stringify(mongoData));
   response.status(201).send("<h1> Register request received </h1>");
 });
 
