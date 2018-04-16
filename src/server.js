@@ -49,7 +49,7 @@ app.get("/health", (request, response) => {
 * Handle User Registration.
 */
 app.put("/register", (request, response) => {
-  logger.info("REGISTERING User");
+  logger.info("registering User");
   const body = request.body;
   const action = "REGISTRATION";
   const username = body.username;
@@ -60,8 +60,8 @@ app.put("/register", (request, response) => {
   // TODO: Query before posting message. Is username unique?
 
   const riakData = {
-    ip: request.ip,
-    action: action
+    action: action,
+    ip: request.ip
   };
   handler.sendMessage("riak", JSON.stringify(riakData));
 
@@ -71,7 +71,8 @@ app.put("/register", (request, response) => {
     password: password
   };
   handler.sendMessage("mongo", JSON.stringify(mongoData));
-  response.status(201).send("<h1> Register request received </h1>");
+  response.status(201)
+    .send("<h1> Register request received </h1>");
 });
 
 const initialize = () => {
