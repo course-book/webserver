@@ -13,7 +13,8 @@
     "dotenv": "^5.0.1",
     "express": "^4.16.3",
     "mkdirp": "^0.5.1",
-    "simple-node-logger": "^0.93.37"
+    "simple-node-logger": "^0.93.37",
+    "uuid": "^3.2.1"
   },
   "devDependencies": {
     "nodemon": "^1.17.3"

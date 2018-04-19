@@ -3,6 +3,7 @@ const bodyParser = require("body-parser");
 const path = require("path");
 const dotenv = require("dotenv");
 const amqp = require("amqplib");
+const uuidv4 = require('uuid/v4');
 const SimpleNodeLogger = require("simple-node-logger");
 const mkdirp = require("mkdirp")
 
@@ -17,6 +18,8 @@ mkdirp("./logs", (error) => {
   }
   initialize();
 });
+
+const uuidMap = new Map();
 
 // Use Basic Logger. Have it override if setup completes.
 let logger = SimpleNodeLogger.createSimpleLogger();
@@ -65,14 +68,37 @@ app.put("/register", (request, response) => {
   };
   handler.sendMessage("riak", JSON.stringify(riakData));
 
+  const uuid = uuidv4();
   const mongoData = {
     action: action,
     username: username,
-    password: password
+    password: password,
+    uuid: uuid
   };
   handler.sendMessage("mongo", JSON.stringify(mongoData));
-  response.status(201)
-    .send("<h1> Register request received </h1>");
+  uuidMap.set(uuid, response);
+});
+
+app.post("/login", (request, response) => {
+  logger.info("Not Implemented");
+  response.status(500)
+    .send("Login is not implemented");
+});
+
+app.post("/respond", (request, response) => {
+  logger.info("responding to user");
+  const body = request.body;
+  const uuid = body.uuid;
+  const statusCode = body.statusCode;
+
+  const initResponse = uuidMap.get(uuid);
+  if (initResponse) {
+    initResponse.status(statusCode)
+      .send();
+    uuidMap.delete(uuid);
+  }
+  response.status(200)
+    .send();
 });
 
 const initialize = () => {
