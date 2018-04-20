@@ -90,11 +90,12 @@ app.post("/respond", (request, response) => {
   const body = request.body;
   const uuid = body.uuid;
   const statusCode = body.statusCode;
+  const message = body.message;
 
   const initResponse = uuidMap.get(uuid);
   if (initResponse) {
     initResponse.status(statusCode)
-      .send();
+      .send(body.message);
     uuidMap.delete(uuid);
   }
   response.status(200)
