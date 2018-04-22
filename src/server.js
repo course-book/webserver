@@ -137,7 +137,7 @@ app.post("/login", (request, response) => {
     uri: `${MONGO_HOST}/login`,
     body: body,
     json: true
-  }
+  };
   rp(options).then((mongoResponse) => {
     logger.info(`Mongo responded with ${mongoResponse}`);
     if (monogResponse.authorized) {
