@@ -7,6 +7,7 @@ const uuidv4 = require('uuid/v4');
 const SimpleNodeLogger = require("simple-node-logger");
 const mkdirp = require("mkdirp");
 const jwt = require("jsonwebtoken");
+const rp = require("request-promise");
 dotenv.config();
 
 // Classes
@@ -27,15 +28,16 @@ mkdirp("./logs", (error) => {
 const app = express();
 
 // Parsing Environment Constants.
-const port = process.env.PORT || 8080;
-const jwtSecret = process.env.JWT_SECRET || "course-book-secret";
+const PORT = process.env.PORT || 8080;
+const JWT_SECRET = process.env.JWT_SECRET || "course-book-secret";
+const MONGO_HOST = process.env.MONGO_HOST;
 
 // Use Basic Logger. Have it override if setup completes.
 let logger = SimpleNodeLogger.createSimpleLogger();
 
 // Handler Instantiation.
 const handler = new RabbitHandler(process.env.RABBITMQ_HOST, logger);
-const authenticator = new Authenticator(jwtSecret);
+const authenticator = new Authenticator(JWT_SECRET);
 const registrationResponder = new RegistrationResponder(authenticator);
 
 // Map to be used in conjunction with `/respond` (force synchronous endpoints)
@@ -65,7 +67,7 @@ app.get("/health", (request, response) => {
 * Handle User Registration.
 */
 app.put("/register", (request, response) => {
-  logger.info("registering User");
+  logger.info("[ PUT ] registering User");
   const body = request.body;
   const action = "REGISTRATION";
   const username = body.username;
@@ -93,31 +95,68 @@ app.put("/register", (request, response) => {
 });
 
 /**
+ *  Handle Course Creation
+ */
+app.put("/course", (request, response) => {
+  logger.info("[ PUT ] course creation");
+
+  const token = request.get("Authorization");
+  logger.info(`Got token ${token}`);
+  authenticator.verify(token)
+    .then((payload) => {
+      const action = "COURSE_CREATE";
+      const riakData = {
+        action: action,
+        ip: request.ip,
+        username: payload.username
+        // TODO: figure out what else is sent.
+      };
+      handler.sendMessage("riak", JSON.stringify(riakData));
+
+      const uuid = uuidv4();
+      const mongoData = {
+        action: action,
+        username: payload.username,
+        uuid: uuid
+      };
+      handler.sendMessage("mongo", JSON.stringify(mongoData));
+      response.status(202).send("Course has been queued for processing");
+    })
+    .catch((error) => response.status(401).send(error.message));
+});
+
+/**
  *  Handle User Login.
  */
 app.post("/login", (request, response) => {
-  logger.info(`login ${request.ip}`);
+  logger.info(`[ POST ] login ${request.ip}`);
 
-  // TODO: remove lines below. This was just to verify authentication.
   const body = request.body;
-  const token = body.token;
-  authenticator.verify(token)
-    .then((payload) => {
-      logger.info(payload)
-      response.status(200).send(payload);
-    })
-    .catch((message) => {
-      logger.error(message)
-      response.status(401).send(message);
-    });
+  const options = {
+    method: "POST",
+    uri: `${MONGO_HOST}/login`,
+    body: body,
+    json: true
+  }
+  rp(options).then((mongoResponse) => {
+    logger.info(`Mongo responded with ${mongoResponse}`);
+    if (monogResponse.authorized) {
+      const payload = {
+        username: body.username
+      };
+      const token = authenticator.sign(payload);
+      response.status(200).send(token);
+    }
+  }).catch((error) => {
+    response.status(500).send(error.message);
+  });
 });
-
 
 /**
  *  Handle synchronous responses.
  */
 app.post("/respond", (request, response) => {
-  logger.info("responding to user");
+  logger.info("[ POST ] respond to user");
   const body = request.body;
   const uuid = body.uuid;
   const action = body.action;
@@ -150,11 +189,12 @@ const initialize = () => {
   };
   logger = SimpleNodeLogger.createSimpleLogger(opts);
 
-  app.listen(port, (error) => {
+  app.listen(PORT, (error) => {
     if (error) {
       logger.error(error);
+      process.exit(1);
     } else {
-      logger.info(`Webserver is LIVE. ${port}`);
+      logger.info(`Webserver is LIVE. ${PORT}`);
       logger.info(`Rabbitmq Endpoint: ${process.env.RABBITMQ_HOST}`);
     }
   });
