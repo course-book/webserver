@@ -101,6 +101,27 @@ app.put("/course", (request, response) => {
   logger.info("[ PUT ] course creation");
 
   const token = request.get("Authorization");
+
+  const body = request.body;
+  const name = body.name;
+  const sources = body.sources;
+  const description = body.description;
+  const shortDescription = body.shortDescription || "";
+
+  if (!name) {
+    response.status(400)
+      .send("Course name is missing.");
+    return;
+  } else if (!sources) {
+    response.status(400)
+      .send("Course has no sources.");
+    return;
+  } else if (!description) {
+    response.status(400)
+      .send("Course has no description.");
+    return;
+  }
+
   logger.info(`Got token ${token}`);
   authenticator.verify(token)
     .then((payload) => {
@@ -108,16 +129,20 @@ app.put("/course", (request, response) => {
       const riakData = {
         action: action,
         ip: request.ip,
-        username: payload.username
-        // TODO: figure out what else is sent.
+        username: payload.username,
+        name: name,
       };
       handler.sendMessage("riak", JSON.stringify(riakData));
 
       const uuid = uuidv4();
       const mongoData = {
         action: action,
-        username: payload.username,
-        uuid: uuid
+        author: payload.username,
+        uuid: uuid,
+        name: name,
+        sources: sources,
+        description: description,
+        shortDescription: shortDescription
       };
       handler.sendMessage("mongo", JSON.stringify(mongoData));
       response.status(202).send("Course has been queued for processing");
