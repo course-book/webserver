@@ -54,6 +54,13 @@ app.use(express.static(path.join(__dirname, "/build"), {maxAge: "1w"}));
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({extended: false}));
 
+app.all("/*", (request, response, next) => {
+  response.header("Access-Control-Allow-Origin", "*");
+  response.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
+  response.header("Access-Control-Allow-Methods", "GET, POST, PUT");
+  next();
+});
+
 /**
 * Health endpoint.
 */
@@ -154,7 +161,7 @@ app.put("/course", (request, response) => {
  *  Handle User Login.
  */
 app.post("/login", (request, response) => {
-  logger.info(`[ POST ] login ${request.ip}`);
+  logger.info(`[ LOGIN ] ip ${request.ip}`);
 
   const body = request.body;
   const options = {
@@ -163,18 +170,17 @@ app.post("/login", (request, response) => {
     body: body,
     json: true
   };
-  rp(options).then((mongoResponse) => {
-    logger.info(`Mongo responded with ${mongoResponse}`);
-    if (monogResponse.authorized) {
-      const payload = {
-        username: body.username
-      };
-      const token = authenticator.sign(payload);
-      response.status(200).send(token);
-    }
-  }).catch((error) => {
-    response.status(500).send(error.message);
-  });
+  rp(options)
+    .then((mongoResponse) => {
+      logger.info(`[ LOGIN ] Mongo responded with ${JSON.stringify(mongoResponse)}`);
+      let message = mongoResponse.message;
+      if (mongoResponse.authorized) {
+        const payload = { username: body.username };
+        message = authenticator.sign(payload);
+      }
+      response.status(mongoResponse.statusCode)
+        .send(message);
+    }).catch((error) => response.status(500).send(error.message));
 });
 
 /**
@@ -185,6 +191,8 @@ app.post("/respond", (request, response) => {
   const body = request.body;
   const uuid = body.uuid;
   const action = body.action;
+
+  logger.info(`[ RESPOND ] ${JSON.stringify(body)}`);
 
   const initResponse = uuidMap.get(uuid);
   if (initResponse) {
@@ -200,6 +208,7 @@ app.post("/respond", (request, response) => {
     uuidMap.delete(uuid);
   }
 
+  logger.info("[ RESPOND ] Responded to user");
   response.status(200)
     .send();
 });

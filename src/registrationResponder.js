@@ -5,7 +5,7 @@ class RegistrationResponder {
 
   respond(response, body) {
     switch (body.statusCode) {
-      case (200): // success
+      case (201): // success
         const payload = {
           username: body.username
         };
@@ -15,7 +15,7 @@ class RegistrationResponder {
         break;
       case (100): // processing
       case (500): // failed to insert
-      case (501): // duplicate username
+      case (409): // duplicate username
         response.status(body.statusCode)
           .send(body.message);
         break;
