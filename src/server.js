@@ -205,6 +205,7 @@ app.post("/respond", (request, response) => {
         break;
       case "COURSE_CREATE":
         courseCreationResponder.respond(initResponse, body);
+        break;
       default:
         logger.warn(`Unrecognized action ${action}`);
         initResponse.status(500).send("Unexpected response action");
