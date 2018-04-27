@@ -14,6 +14,7 @@ dotenv.config();
 const RabbitHandler = require("./rabbitHandler");
 const Authenticator = require("./authenticator");
 const RegistrationResponder = require("./registrationResponder");
+const CourseCreationResponder = require("./courseCreationResponder");
 
 // Setup
 mkdirp("./logs", (error) => {
@@ -39,6 +40,7 @@ let logger = SimpleNodeLogger.createSimpleLogger();
 const handler = new RabbitHandler(process.env.RABBITMQ_HOST, logger);
 const authenticator = new Authenticator(JWT_SECRET);
 const registrationResponder = new RegistrationResponder(authenticator);
+const courseCreationResponder = new CourseCreationResponder();
 
 // Map to be used in conjunction with `/respond` (force synchronous endpoints)
 const uuidMap = new Map();
@@ -152,7 +154,8 @@ app.put("/course", (request, response) => {
         shortDescription: shortDescription
       };
       handler.sendMessage("mongo", JSON.stringify(mongoData));
-      response.status(202).send("Course has been queued for processing");
+      uuidMap.set(uuid, response);
+      // Note: Mongo needs to process this and verify that it is not a duplicate.
     })
     .catch((error) => response.status(401).send(error.message));
 });
@@ -200,6 +203,8 @@ app.post("/respond", (request, response) => {
       case "REGISTRATION":
         registrationResponder.respond(initResponse, body);
         break;
+      case "COURSE_CREATE":
+        courseCreationResponder.respond(initResponse, body);
       default:
         logger.warn(`Unrecognized action ${action}`);
         initResponse.status(500).send("Unexpected response action");
