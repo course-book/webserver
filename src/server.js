@@ -64,7 +64,7 @@ app.all("/*", (request, response, next) => {
 });
 
 /**
-* Health endpoint.
+* Health
 */
 app.get("/health", (request, response) => {
   const logTag = "HEALTH";
@@ -74,7 +74,7 @@ app.get("/health", (request, response) => {
 });
 
 /**
-* Handle User Registration.
+* User Registration
 */
 app.put("/register", (request, response) => {
   const logTag = "REGISTER";
@@ -106,7 +106,7 @@ app.put("/register", (request, response) => {
 });
 
 /**
- *  Handle User Login.
+ *  User Login
  */
 app.post("/login", (request, response) => {
   const logTag = "LOGIN";
@@ -140,7 +140,7 @@ app.post("/login", (request, response) => {
 });
 
 /**
- *  Handle Course Creation
+ *  Course Creation
  */
 app.put("/course", (request, response) => {
   const logTag = "COURSE";
@@ -177,6 +177,71 @@ app.put("/course", (request, response) => {
 });
 
 /**
+ *  Course Read Pagination
+ */
+app.get("/course", (request, response) => {
+  const page = request.query.page;
+  const perPage = request.query.perPage || 10;
+
+  logger.info(`[ ${logTag} ] getting courses on page ${page} limit ${perPage}`);
+
+  const riakData = {
+    action: "COURSE_FETCH",
+    id: "ALL"
+  };
+  handler.sendMessage("riak", JSON.stringify(riakData));
+
+  const options = {
+    method: "GET",
+    uri: `${MONGO_HOST}/course?page=${page}&perPage=${perPage}`,
+    json: true
+  };
+  rp(options)
+    .then((mongoResponse) => {
+      logger.info(`[ ${logTag} ] mongo responded with ${JSON.stringify(mongoResponse)}`);
+      let message = mongoResponse;
+      response.status(mongoResponse.statusCode)
+        .send(mongoResponse.message);
+    })
+    .catch((error) => {
+      logger.error(`[ ${logTag} ] ${error.message}`);
+      response.status(500).send({message: error.message})
+    });
+})
+
+/**
+ *  Course Read
+ */
+app.get("/course/:id", (request, response) => {
+  const logTag = "COURSE";
+  const courseId = request.params.id;
+  logger.info(`[ ${logTag} ] fetching course ${courseId}`);
+
+  const riakData = {
+    action: "COURSE_FETCH",
+    id: courseId
+  };
+  handler.sendMessage("riak", JSON.stringify(riakData));
+
+  const options = {
+    method: "GET",
+    uri: `${MONGO_HOST}/course/${courseId}`,
+    json: true
+  };
+  rp(options)
+    .then((mongoResponse) => {
+      logger.info(`[ ${logTag} ] mongo responded with ${JSON.stringify(mongoResponse)}`);
+      let message = mongoResponse;
+      response.status(mongoResponse.statusCode)
+        .send(mongoResponse.message);
+    })
+    .catch((error) => {
+      logger.error(`[ ${logTag} ] ${error.message}`);
+      response.status(500).send({message: error.message})
+    });
+});
+
+/**
  *  Course Update
  */
 app.post("/course/:id", (request, response) => {
@@ -190,7 +255,7 @@ app.post("/course/:id", (request, response) => {
         const action = "COURSE_UPDATE";
         const riakData = {
           action: action,
-          courseId: courseId
+          id: courseId
         };
         handler.sendMessage("riak", JSON.stringify(riakData));
 
@@ -213,35 +278,29 @@ app.post("/course/:id", (request, response) => {
 });
 
 /**
- *  Fetch Course
+ *  Course Delete
  */
-app.get("/course/:id", (request, response) => {
-  const logTag = "COURSE";
+app.delete("/course/:id", (request, response) => {
+  const token = request.get("Authorization");
   const courseId = request.params.id;
-  logger.info(`[ ${logTag} ] fetching course ${courseId}`);
 
-  const riakData = {
-    action: "COURSE_FETCH",
-    courseId: courseId
-  };
-  handler.sendMessage("riak", JSON.stringify(riakData));
+  authenticator.verify(token)
+    .then((payload) => {
+      const action = "COURSE_DELETE";
+      const riakData = {
+        action: action,
+        id: courseId
+      };
+      handler.sendMessage("riak", JSON.stringify(riakData));
 
-  const options = {
-    method: "GET",
-    uri: `${MONGO_HOST}/course/${courseId}`,
-    json: true
-  };
-  rp(options)
-    .then((mongoResponse) => {
-      logger.info(`[ ${logTag} ] mongo responded with ${JSON.stringify(mongoResponse)}`);
-      let message = mongoResponse;
-      response.status(mongoResponse.statusCode)
-        .send(mongoResponse.message);
+      const mongoData = {
+        author: payload.username,
+        courseId: courseId
+      };
+      handler.sendMessage("mongo", JSON.stringify(mongoData));
+      response.status(202).send("Course has been queued for deletion.");
     })
-    .catch((error) => {
-      logger.error(`[ ${logTag} ] ${error.message}`);
-      response.status(500).send({message: error.message})
-    });
+    .catch((error) => onTokenVerificationError(logTag, error, response));
 });
 
 /**
@@ -277,19 +336,10 @@ const courseVerify = (request, response, onSuccess) => {
 }
 
 /**
- *  Handle token verification error.
- */
-const onTokenVerificationError = (logTag, error, response) => {
-  logger.error(`[ ${logTag} ] invalid token`);
-  response.status(401)
-    .json({message: error.message});
-}
-
-/**
- *  Create a wish.
+ *  Wish Create
  */
 app.put("/wish", (request, response) => {
-  const logTag = "WISH"
+  const logTag = "WISH";
   logger.info(`[ ${logTag} ] wish creation`);
 
   const createWish = (token, name, details) => {
@@ -321,6 +371,134 @@ app.put("/wish", (request, response) => {
 });
 
 /**
+ *  Wish Read Pagination
+ */
+app.get("/wish", (request, response) => {
+  const page = request.query.page;
+  const perPage = request.query.perPage || 10;
+  const logTag = "WISH";
+
+  logger.info(`[ ${logTag} ] getting wish on page ${page} with limit ${perPage}`);
+
+  const riakData = {
+    action: "WISH_FETCH",
+    id: "ALL"
+  };
+  handler.sendMessage("riak", JSON.stringify(riakData));
+
+  const options = {
+    method: "GET",
+    uri: `${MONGO_HOST}/wish?page=${page}&perPage=${perPage}`,
+    json: true
+  };
+  rp(options)
+    .then((mongoResponse) => {
+      logger.info(`[ ${logTag} ] mongo responded with ${JSON.stringify(mongoResponse)}`);
+      let message = mongoResponse;
+      response.status(mongoResponse.statusCode)
+        .send(mongoResponse.message);
+    })
+    .catch((error) => {
+      logger.error(`[ ${logTag} ] ${error.message}`);
+      response.status(500).send({message: error.message})
+    });
+});
+
+/**
+ *  Wish Read
+ */
+app.get("/wish/:id", (request, response) => {
+  const logTag = "WISH"
+  const wishId = request.params.id;
+  logger.info(`[ ${logTag} ] wish ${wishId} fetch`);
+
+  const riakData = {
+    action: "WISH_FETCH",
+    id: wishId
+  };
+  handler.sendMessage("riak", JSON.stringify(riakData));
+
+  const options = {
+    method: "GET",
+    uri: `${MONGO_HOST}/wish/${wishId}`,
+    json: true
+  };
+  rp(options)
+    .then((mongoResponse) => {
+      logger.info(`[ ${logTag} ] mongo responded with ${JSON.stringify(mongoResponse)}`);
+      let message = mongoResponse;
+      response.status(mongoResponse.statusCode)
+        .send(mongoResponse.message);
+    })
+    .catch((error) => {
+      logger.error(`[ ${logTag} ] ${error.message}`);
+      response.status(500).send({message: error.message})
+    });
+});
+
+/**
+ *  Wish Update
+ */
+app.post("/wish/:id", (request, response) => {
+  const logTag = "WISH"
+  const wishId = request.params.id;
+  logger.info(`[ ${logTag} ] wish ${wishId} update`);
+
+  const updateWish = (token, name, details) => {
+    authenticator.verify(token)
+      .then((payload) => {
+        const username = payload.username;
+
+        const action = "WISH_UPDATE";
+        const riakData = {
+          action: action,
+          id: wishId
+        };
+        handler.sendMessage("riak", JSON.stringify(riakData));
+
+        const mongoData = {
+          action: action,
+          wishId: wishId,
+          name: name,
+          details: details,
+          wisher: username
+        };
+        handler.sendMessage("mongo", JSON.stringify(mongoData));
+        response.status(202).send("Wish update has been queued for processing.");
+      })
+      .catch((error) => onTokenVerificationError(logTag, error, response));
+  }
+
+  wishVerify(request, response, updateWish);
+});
+
+/**
+ *  Wish Delete
+ */
+app.delete("/wish/:id", (request, resposne) => {
+  const token = request.get("Authorization");
+  const wishId = request.params.id;
+
+  authenticator.verify(token)
+    .then((payload) => {
+      const action = "WISH_DELETE";
+      const riakData = {
+        action: action,
+        id: wishId
+      };
+      handler.sendMessage("riak", JSON.stringify(riakData));
+
+      const mongoData = {
+        author: payload.username,
+        wishId: wishId
+      };
+      handler.sendMessage("mongo", JSON.stringify(mongoData));
+      response.status(202).send("Wish has been queued for deletion.");
+    })
+    .catch((error) => onTokenVerificationError(logTag, error, response));
+});
+
+/**
  *  Verify Wish request body.
  *  If invalid, 400 with a help message will be sent.
  *  If valid, onSuccess will be called with (token, name, details)
@@ -339,6 +517,15 @@ const wishVerify = (request, response, onSuccess) => {
   }
 
   onSuccess(token, name, details);
+}
+
+/**
+ *  Handle token verification error.
+ */
+const onTokenVerificationError = (logTag, error, response) => {
+  logger.error(`[ ${logTag} ] invalid token`);
+  response.status(401)
+    .json({message: error.message});
 }
 
 /**
