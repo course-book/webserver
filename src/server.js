@@ -11,10 +11,10 @@ const rp = require("request-promise");
 dotenv.config();
 
 // Classes
-const RabbitHandler = require("./rabbitHandler");
-const Authenticator = require("./authenticator");
-const RegistrationResponder = require("./registrationResponder");
-const CourseCreationResponder = require("./courseCreationResponder");
+const RabbitHandler = require("./RabbitHandler");
+const Authenticator = require("./Authenticator");
+const RegistrationResponder = require("./responder/RegistrationResponder");
+const CourseCreationResponder = require("./responder/CourseCreationResponder");
 
 // Setup
 mkdirp("./logs", (error) => {
@@ -67,22 +67,26 @@ app.all("/*", (request, response, next) => {
 * Health endpoint.
 */
 app.get("/health", (request, response) => {
-  logger.info(`hostname: ${request.hostname}`);
-  logger.info(`ip: ${request.ip}`);
-  response.status(200).send("<h1> Server is Up </h1>");
+  const logTag = "HEALTH";
+  logger.info(`[ ${logTag} ] hostname: ${request.hostname} | ip ${request.ip}`);
+  response.status(200)
+    .send("<h1> Server is Up </h1>");
 });
+
+// ----- LOGIN -----
 
 /**
 * Handle User Registration.
 */
 app.put("/register", (request, response) => {
-  logger.info("[ PUT ] registering User");
+  const logTag = "REGISTER";
+  logger.info(`[ ${logTag} ] registering User`);
   const body = request.body;
   const action = "REGISTRATION";
   const username = body.username;
   const password = body.password;
 
-  logger.info(`Registering User username=${username} password=${password}`);
+  logger.info(`[ ${logTag} ] Registering User username=${username} password=${password}`);
 
   const riakData = {
     action: action,
@@ -104,11 +108,118 @@ app.put("/register", (request, response) => {
 });
 
 /**
+ *  Handle User Login.
+ */
+app.post("/login", (request, response) => {
+  const logTag = "LOGIN";
+  logger.info(`[ ${logTag} ] ip ${request.ip}`);
+
+  const body = request.body;
+  const options = {
+    method: "POST",
+    uri: `${MONGO_HOST}/login`,
+    body: body,
+    json: true
+  };
+  rp(options)
+    .then((mongoResponse) => {
+      logger.info(`[ ${logTag} ] Mongo responded with ${JSON.stringify(mongoResponse)}`);
+      let message = mongoResponse.message;
+      if (mongoResponse.authorized) {
+        const payload = { username: body.username };
+        message = authenticator.sign(payload);
+      }
+      response.status(mongoResponse.statusCode)
+        .send(message);
+    }).catch((error) => response.status(500).send(error.message));
+});
+
+// ----- COURSE -----
+
+/**
  *  Handle Course Creation
  */
 app.put("/course", (request, response) => {
-  logger.info("[ PUT ] course creation");
+  const logTag = "COURSE";
+  logger.info(`[ ${logTag} ] course creation`);
+  const courseCreate = (token, name, sources, description, shortDescription) => {
+    authenticator.verify(token)
+      .then((payload) => {
+        logger.info(`[ ${logTag} ] token verified`);
+        const action = "COURSE_CREATE";
+        const riakData = {
+          action: action,
+          ip: request.ip,
+          username: payload.username,
+          name: name,
+        };
+        handler.sendMessage("riak", JSON.stringify(riakData));
 
+        const uuid = uuidv4();
+        const mongoData = {
+          action: action,
+          author: payload.username,
+          uuid: uuid,
+          name: name,
+          sources: sources,
+          description: description,
+          shortDescription: shortDescription
+        };
+        handler.sendMessage("mongo", JSON.stringify(mongoData));
+        uuidMap.set(uuid, response);
+        // Note: Mongo needs to process this and verify that it is not a duplicate.
+      })
+      .catch((error) => onTokenVerificationError(logTag, error, response));
+  }
+
+  courseVerify(request, response, courseCreate);
+});
+
+/**
+ *  Course Update
+ */
+app.post("/course/:id", (request, response) => {
+  const logTag = "COURSE";
+  logger.info(`[ ${logTag} ] course update`);
+  const courseUpdate = (token, name, sources, description, shortDescription) => {
+    authenticator.verify(token)
+      .then((payload) => {
+        logger.info(`[ ${logTag} ] token verified`);
+        const action = "COURSE_UPDATE";
+        const riakData = {
+          action: action,
+          ip: request.ip,
+          username: payload.username,
+          name: name,
+          id: request.params.id
+        };
+        handler.sendMessage("riak", JSON.stringify(riakData));
+
+        const mongoData = {
+          action: action,
+          courseId: request.params.id,
+          author: payload.username,
+          name: name,
+          sources: sources,
+          description: description,
+          shortDescription: shortDescription
+        };
+        handler.sendMessage("mongo", JSON.stringify(mongoData));
+        response.status(202)
+          .send("Course update has been queued for processing");
+      })
+      .catch((error) => onTokenVerificationError(logTag, error, response));
+  }
+  courseVerify(request, response, courseUpdate);
+});
+
+/**
+ *  Verify the course request.
+ *  If invalid, respond with 400 with helper message.
+ *  If valid, call the onSuccess callback.
+ *  format: onSuccess(token, name, sources, description, shortDescription)
+ */
+const courseVerify = (request, response, onSuccess) => {
   const token = request.get("Authorization");
 
   const body = request.body;
@@ -131,66 +242,22 @@ app.put("/course", (request, response) => {
     return;
   }
 
-  logger.info(`Got token ${token}`);
-  authenticator.verify(token)
-    .then((payload) => {
-      const action = "COURSE_CREATE";
-      const riakData = {
-        action: action,
-        ip: request.ip,
-        username: payload.username,
-        name: name,
-      };
-      handler.sendMessage("riak", JSON.stringify(riakData));
-
-      const uuid = uuidv4();
-      const mongoData = {
-        action: action,
-        author: payload.username,
-        uuid: uuid,
-        name: name,
-        sources: sources,
-        description: description,
-        shortDescription: shortDescription
-      };
-      handler.sendMessage("mongo", JSON.stringify(mongoData));
-      uuidMap.set(uuid, response);
-      // Note: Mongo needs to process this and verify that it is not a duplicate.
-    })
-    .catch((error) => response.status(401).send(error.message));
-});
+  onSuccess(token, name, sources, description, shortDescription);
+}
 
 /**
- *  Handle User Login.
+ *  Handle token verification error.
  */
-app.post("/login", (request, response) => {
-  logger.info(`[ LOGIN ] ip ${request.ip}`);
-
-  const body = request.body;
-  const options = {
-    method: "POST",
-    uri: `${MONGO_HOST}/login`,
-    body: body,
-    json: true
-  };
-  rp(options)
-    .then((mongoResponse) => {
-      logger.info(`[ LOGIN ] Mongo responded with ${JSON.stringify(mongoResponse)}`);
-      let message = mongoResponse.message;
-      if (mongoResponse.authorized) {
-        const payload = { username: body.username };
-        message = authenticator.sign(payload);
-      }
-      response.status(mongoResponse.statusCode)
-        .send(message);
-    }).catch((error) => response.status(500).send(error.message));
-});
+const onTokenVerificationError = (logTag, error, response) => {
+  logger.error(`[ ${logTag} ] invalid token`);
+  response.status(401).send(error.message);
+}
 
 /**
  *  Handle synchronous responses.
  */
 app.post("/respond", (request, response) => {
-  logger.info("[ POST ] respond to user");
+  logger.info("[ RESPOND ] respond to user");
   const body = request.body;
   const uuid = body.uuid;
   const action = body.action;
@@ -201,20 +268,22 @@ app.post("/respond", (request, response) => {
   if (initResponse) {
     switch (action) {
       case "REGISTRATION":
+        logger.info("[ RESPOND ] responding to registration");
         registrationResponder.respond(initResponse, body);
         break;
       case "COURSE_CREATE":
+        logger.info("[ RESPOND ] responding to course creation");
         courseCreationResponder.respond(initResponse, body);
         break;
       default:
-        logger.warn(`Unrecognized action ${action}`);
+        logger.warn(`[ RESPOND ] Unrecognized action ${action}`);
         initResponse.status(500).send("Unexpected response action");
         break;
     }
     uuidMap.delete(uuid);
   }
 
-  logger.info("[ RESPOND ] Responded to user");
+  logger.info("[ RESPOND ] responding to handler with 200");
   response.status(200)
     .send();
 });
@@ -234,8 +303,8 @@ const initialize = () => {
       logger.error(error);
       process.exit(1);
     } else {
-      logger.info(`Webserver is LIVE. ${PORT}`);
-      logger.info(`Rabbitmq Endpoint: ${process.env.RABBITMQ_HOST}`);
+      logger.info(`[ INIT ] Webserver is LIVE. ${PORT}`);
+      logger.info(`[ INIT ] Rabbitmq Endpoint: ${process.env.RABBITMQ_HOST}`);
     }
   });
 }
