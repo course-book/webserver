@@ -73,8 +73,6 @@ app.get("/health", (request, response) => {
     .send("<h1> Server is Up </h1>");
 });
 
-// ----- LOGIN -----
-
 /**
 * Handle User Registration.
 */
@@ -140,8 +138,6 @@ app.post("/login", (request, response) => {
     })
     .catch((error) => response.status(500).send(error.message));
 });
-
-// ----- COURSE -----
 
 /**
  *  Handle Course Creation
@@ -287,6 +283,62 @@ const onTokenVerificationError = (logTag, error, response) => {
   logger.error(`[ ${logTag} ] invalid token`);
   response.status(401)
     .json({message: error.message});
+}
+
+/**
+ *  Create a wish.
+ */
+app.put("/wish", (request, response) => {
+  const logTag = "WISH"
+  logger.info(`[ ${logTag} ] wish creation`);
+
+  const createWish = (token, name, details) => {
+    authenticator.verify(token)
+      .then((payload) => {
+        logger.info(`[ ${logTag} ] token verified`);
+        const username = payload.username
+        const action = "WISH_CREATE";
+        const riakData = {
+          action: action,
+          username: username
+        };
+        handler.sendMessage("riak", JSON.stringify(riakData));
+
+        const mongoData = {
+          action: action,
+          name: name,
+          details: details,
+          wisher: username
+        };
+        handler.sendMessage("mongo", JSON.stringify(mongoData));
+
+        response.status(202).send("Wish has been queued for processing.");
+      })
+      .catch((error) => onTokenVerificationError(logTag, error, response));
+  };
+
+  wishVerify(request, response, createWish);
+});
+
+/**
+ *  Verify Wish request body.
+ *  If invalid, 400 with a help message will be sent.
+ *  If valid, onSuccess will be called with (token, name, details)
+ */
+const wishVerify = (request, response, onSuccess) => {
+  const token = request.get("Authorization");
+
+  const body = request.body;
+  const name = body.name;
+  const details = body.details;
+
+  if (!name || !details) {
+    response.status(400)
+      .send("A Wish requires a name and details");
+    return;
+  }
+
+  onSuccess(token, name, details);
 }
 
 /**
