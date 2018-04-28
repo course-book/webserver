@@ -4,8 +4,8 @@
   "description": "CourseBook Web Server",
   "main": "index.js",
   "scripts": {
-    "start": "node ./src/server.js",
-    "dev": "nodemon ./src/server.js"
+    "start": "node ./src/Server.js",
+    "dev": "nodemon ./src/Server.js"
   },
   "author": "",
   "license": "MIT",

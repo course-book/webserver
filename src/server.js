@@ -112,9 +112,15 @@ app.put("/register", (request, response) => {
  */
 app.post("/login", (request, response) => {
   const logTag = "LOGIN";
+  const body = request.body;
   logger.info(`[ ${logTag} ] ip ${request.ip}`);
 
-  const body = request.body;
+  const riakData = {
+    action: logTag,
+    ip: request.ip,
+    username: body.username
+  };
+  handler.sendMessage("riak", JSON.stringify(riakData));
   const options = {
     method: "POST",
     uri: `${MONGO_HOST}/login`,
@@ -131,7 +137,8 @@ app.post("/login", (request, response) => {
       }
       response.status(mongoResponse.statusCode)
         .send(message);
-    }).catch((error) => response.status(500).send(error.message));
+    })
+    .catch((error) => response.status(500).send(error.message));
 });
 
 // ----- COURSE -----
@@ -149,9 +156,7 @@ app.put("/course", (request, response) => {
         const action = "COURSE_CREATE";
         const riakData = {
           action: action,
-          ip: request.ip,
-          username: payload.username,
-          name: name,
+          username: payload.username
         };
         handler.sendMessage("riak", JSON.stringify(riakData));
 
@@ -180,7 +185,8 @@ app.put("/course", (request, response) => {
  */
 app.post("/course/:id", (request, response) => {
   const logTag = "COURSE";
-  logger.info(`[ ${logTag} ] course update`);
+  const courseId = request.params.id;
+  logger.info(`[ ${logTag} ] course ${courseId} update`);
   const courseUpdate = (token, name, sources, description, shortDescription) => {
     authenticator.verify(token)
       .then((payload) => {
@@ -188,16 +194,13 @@ app.post("/course/:id", (request, response) => {
         const action = "COURSE_UPDATE";
         const riakData = {
           action: action,
-          ip: request.ip,
-          username: payload.username,
-          name: name,
-          id: request.params.id
+          courseId: courseId
         };
         handler.sendMessage("riak", JSON.stringify(riakData));
 
         const mongoData = {
           action: action,
-          courseId: request.params.id,
+          courseId: courseId,
           author: payload.username,
           name: name,
           sources: sources,
@@ -211,6 +214,38 @@ app.post("/course/:id", (request, response) => {
       .catch((error) => onTokenVerificationError(logTag, error, response));
   }
   courseVerify(request, response, courseUpdate);
+});
+
+/**
+ *  Fetch Course
+ */
+app.get("/course/:id", (request, response) => {
+  const logTag = "COURSE";
+  const courseId = request.params.id;
+  logger.info(`[ ${logTag} ] fetching course ${courseId}`);
+
+  const riakData = {
+    action: "COURSE_FETCH",
+    courseId: courseId
+  };
+  handler.sendMessage("riak", JSON.stringify(riakData));
+
+  const options = {
+    method: "GET",
+    uri: `${MONGO_HOST}/course/${courseId}`,
+    json: true
+  };
+  rp(options)
+    .then((mongoResponse) => {
+      logger.info(`[ ${logTag} ] mongo responded with ${JSON.stringify(mongoResponse)}`);
+      let message = mongoResponse;
+      response.status(mongoResponse.statusCode)
+        .send(mongoResponse.message);
+    })
+    .catch((error) => {
+      logger.error(`[ ${logTag} ] ${error.message}`);
+      response.status(500).send({message: error.message})
+    });
 });
 
 /**
@@ -250,40 +285,42 @@ const courseVerify = (request, response, onSuccess) => {
  */
 const onTokenVerificationError = (logTag, error, response) => {
   logger.error(`[ ${logTag} ] invalid token`);
-  response.status(401).send(error.message);
+  response.status(401)
+    .json({message: error.message});
 }
 
 /**
  *  Handle synchronous responses.
  */
 app.post("/respond", (request, response) => {
-  logger.info("[ RESPOND ] respond to user");
+  const logTag = "RESPOND";
+  logger.info("[ ${logTag} ] respond to user");
   const body = request.body;
   const uuid = body.uuid;
   const action = body.action;
 
-  logger.info(`[ RESPOND ] ${JSON.stringify(body)}`);
+  logger.info(`[ ${logTag} ] ${JSON.stringify(body)}`);
 
   const initResponse = uuidMap.get(uuid);
   if (initResponse) {
     switch (action) {
       case "REGISTRATION":
-        logger.info("[ RESPOND ] responding to registration");
+        logger.info(`[ ${logTag} ] responding to registration`);
         registrationResponder.respond(initResponse, body);
         break;
       case "COURSE_CREATE":
-        logger.info("[ RESPOND ] responding to course creation");
+        logger.info(`[ ${logTag} ] responding to course creation`);
         courseCreationResponder.respond(initResponse, body);
         break;
       default:
-        logger.warn(`[ RESPOND ] Unrecognized action ${action}`);
+        logger.warn(`[ ${logTag} ] Unrecognized action ${action}`);
         initResponse.status(500).send("Unexpected response action");
         break;
     }
     uuidMap.delete(uuid);
   }
 
-  logger.info("[ RESPOND ] responding to handler with 200");
+  logger.info(`[ ${logTag} ] responding to handler with 200`);
   response.status(200)
     .send();
 });
