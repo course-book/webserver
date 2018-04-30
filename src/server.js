@@ -198,9 +198,10 @@ app.get("/course", (request, response) => {
     uri = `${uri}&search=${search}`;
   }
 
+  uri = encodeURI(uri);
   const options = {
     method: "GET",
-    uri: encodeURI(uri),
+    uri: uri,
     json: true
   };
   rp(options)
@@ -398,9 +399,10 @@ app.get("/wish", (request, response) => {
     uri = `${uri}&search=${search}`;
   }
 
+  uri = encodeURI(uri);
   const options = {
     method: "GET",
-    uri: encodeURI(uri),
+    uri: uri,
     json: true
   };
   rp(options)
