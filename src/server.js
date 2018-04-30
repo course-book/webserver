@@ -180,8 +180,9 @@ app.put("/course", (request, response) => {
  *  Course Read Pagination
  */
 app.get("/course", (request, response) => {
-  const page = request.query.page;
+  const page = request.query.page || 0;
   const perPage = request.query.perPage || 10;
+  const search = request.query.search;
 
   logger.info(`[ ${logTag} ] getting courses on page ${page} limit ${perPage}`);
 
@@ -191,9 +192,14 @@ app.get("/course", (request, response) => {
   };
   handler.sendMessage("riak", JSON.stringify(riakData));
 
+  let uri = `${MONGO_HOST}/course?page=${page}&perPage=${perPage}`;
+  if (search) {
+    uri = `${uri}&search=${search}`;
+  }
+
   const options = {
     method: "GET",
-    uri: `${MONGO_HOST}/course?page=${page}&perPage=${perPage}`,
+    uri: uri,
     json: true
   };
   rp(options)
@@ -262,7 +268,6 @@ app.post("/course/:id", (request, response) => {
         const mongoData = {
           action: action,
           courseId: courseId,
-          author: payload.username,
           name: name,
           sources: sources,
           description: description,
@@ -294,7 +299,6 @@ app.delete("/course/:id", (request, response) => {
       handler.sendMessage("riak", JSON.stringify(riakData));
 
       const mongoData = {
-        author: payload.username,
         courseId: courseId
       };
       handler.sendMessage("mongo", JSON.stringify(mongoData));
@@ -374,8 +378,9 @@ app.put("/wish", (request, response) => {
  *  Wish Read Pagination
  */
 app.get("/wish", (request, response) => {
-  const page = request.query.page;
+  const page = request.query.page || 0;
   const perPage = request.query.perPage || 10;
+  const search = request.query.search;
   const logTag = "WISH";
 
   logger.info(`[ ${logTag} ] getting wish on page ${page} with limit ${perPage}`);
@@ -386,9 +391,14 @@ app.get("/wish", (request, response) => {
   };
   handler.sendMessage("riak", JSON.stringify(riakData));
 
+  let uri = `${MONGO_HOST}/wish?page=${page}&perPage=${perPage}`;
+  if (search) {
+    uri = `${uri}&search=${search}`;
+  }
+
   const options = {
     method: "GET",
-    uri: `${MONGO_HOST}/wish?page=${page}&perPage=${perPage}`,
+    uri: uri,
     json: true
   };
   rp(options)
@@ -447,8 +457,6 @@ app.post("/wish/:id", (request, response) => {
   const updateWish = (token, name, details) => {
     authenticator.verify(token)
       .then((payload) => {
-        const username = payload.username;
-
         const action = "WISH_UPDATE";
         const riakData = {
           action: action,
@@ -461,7 +469,6 @@ app.post("/wish/:id", (request, response) => {
           wishId: wishId,
           name: name,
           details: details,
-          wisher: username
         };
         handler.sendMessage("mongo", JSON.stringify(mongoData));
         response.status(202).send("Wish update has been queued for processing.");
@@ -489,7 +496,6 @@ app.delete("/wish/:id", (request, resposne) => {
       handler.sendMessage("riak", JSON.stringify(riakData));
 
       const mongoData = {
-        author: payload.username,
         wishId: wishId
       };
       handler.sendMessage("mongo", JSON.stringify(mongoData));
