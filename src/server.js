@@ -150,16 +150,17 @@ app.put("/course", (request, response) => {
       .then((payload) => {
         logger.info(`[ ${logTag} ] token verified`);
         const action = "COURSE_CREATE";
+        const username = payload.username;
         const riakData = {
           action: action,
-          username: payload.username
+          username: username
         };
         handler.sendMessage("riak", JSON.stringify(riakData));
 
         const uuid = uuidv4();
         const mongoData = {
           action: action,
-          author: payload.username,
+          author: username,
           uuid: uuid,
           name: name,
           sources: sources,
@@ -199,7 +200,7 @@ app.get("/course", (request, response) => {
 
   const options = {
     method: "GET",
-    uri: uri,
+    uri: encodeURI(uri),
     json: true
   };
   rp(options)
@@ -229,9 +230,10 @@ app.get("/course/:id", (request, response) => {
   };
   handler.sendMessage("riak", JSON.stringify(riakData));
 
+  const uri = encodeURI(`${MONGO_HOST}/course/${courseId}`);
   const options = {
     method: "GET",
-    uri: `${MONGO_HOST}/course/${courseId}`,
+    uri: uri,
     json: true
   };
   rp(options)
@@ -398,7 +400,7 @@ app.get("/wish", (request, response) => {
 
   const options = {
     method: "GET",
-    uri: uri,
+    uri: encodeURI(uri),
     json: true
   };
   rp(options)
@@ -428,9 +430,10 @@ app.get("/wish/:id", (request, response) => {
   };
   handler.sendMessage("riak", JSON.stringify(riakData));
 
+  const uri = encodeURI(`${MONGO_HOST}/wish/${wishId}`);
   const options = {
     method: "GET",
-    uri: `${MONGO_HOST}/wish/${wishId}`,
+    uri: uri,
     json: true
   };
   rp(options)
