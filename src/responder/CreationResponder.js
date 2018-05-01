@@ -1,4 +1,10 @@
-class CourseCreationResponder {
+class CreationResponder {
+  constructor(entity) {
+    this.entity = entity;
+
+    this.respond = this.respond.bind(this);
+  }
+
   respond(response, body) {
     switch (body.statusCode) {
       case (201): // success
@@ -13,11 +19,11 @@ class CourseCreationResponder {
         break;
       default:
         response.status(body.statusCode)
-          .send(`Unhandled course creation ${body}`);
+          .send(`Unhandled `${this.entity}` creation ${body}`);
         break;
     }
 
   }
 }
 
-module.exports = CourseCreationResponder;
+module.exports = CreationResponder;

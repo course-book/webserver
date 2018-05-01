@@ -14,7 +14,7 @@ dotenv.config();
 const RabbitHandler = require("./RabbitHandler");
 const Authenticator = require("./Authenticator");
 const RegistrationResponder = require("./responder/RegistrationResponder");
-const CourseCreationResponder = require("./responder/CourseCreationResponder");
+const CreationResponder = require("./responder/CreationResponder");
 
 // Setup
 mkdirp("./logs", (error) => {
@@ -40,7 +40,8 @@ let logger = SimpleNodeLogger.createSimpleLogger();
 const handler = new RabbitHandler(process.env.RABBITMQ_HOST, logger);
 const authenticator = new Authenticator(JWT_SECRET);
 const registrationResponder = new RegistrationResponder(authenticator);
-const courseCreationResponder = new CourseCreationResponder();
+const courseCreationResponder = new CreationResponder("course");
+const wishCreationResponder = new CreationResponder("wish");
 
 // Map to be used in conjunction with `/respond` (force synchronous endpoints)
 const uuidMap = new Map();
@@ -563,6 +564,9 @@ app.post("/respond", (request, response) => {
         logger.info(`[ ${logTag} ] responding to course creation`);
         courseCreationResponder.respond(initResponse, body);
         break;
+      case "WISH_CREATE":
+        logger.info(`[ ${logTag} ] responding to wish creation`);
+        wishCreationResponder.respond(initResponse, body);
       default:
         logger.warn(`[ ${logTag} ] Unrecognized action ${action}`);
         initResponse.status(500).send("Unexpected response action");
