@@ -19,7 +19,7 @@ class CreationResponder {
         break;
       default:
         response.status(body.statusCode)
-          .send(`Unhandled `${this.entity}` creation ${body}`);
+          .send(`Unhandled ${this.entity} creation ${body}`);
         break;
     }
 
