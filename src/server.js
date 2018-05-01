@@ -182,6 +182,7 @@ app.put("/course", (request, response) => {
  *  Course Read Pagination
  */
 app.get("/course", (request, response) => {
+  const logTag = "COURSE";
   const page = request.query.page || 0;
   const perPage = request.query.perPage || 10;
   const search = request.query.search;
