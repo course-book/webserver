@@ -361,15 +361,16 @@ app.put("/wish", (request, response) => {
         };
         handler.sendMessage("riak", JSON.stringify(riakData));
 
+        const uuid = uuidv4();
         const mongoData = {
           action: action,
+          uuid: uuid,
           name: name,
           details: details,
           wisher: username
         };
         handler.sendMessage("mongo", JSON.stringify(mongoData));
-
-        response.status(202).send("Wish has been queued for processing.");
+        uuidMap.set(uuid, response);
       })
       .catch((error) => onTokenVerificationError(logTag, error, response));
   };
