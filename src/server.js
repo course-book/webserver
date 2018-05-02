@@ -493,6 +493,7 @@ app.post("/wish/:id", (request, response) => {
 app.delete("/wish/:id", (request, resposne) => {
   const token = request.get("Authorization");
   const wishId = request.params.id;
+  const logTag = "WISH_DELETE"
 
   authenticator.verify(token)
     .then((payload) => {
