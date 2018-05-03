@@ -146,10 +146,10 @@ app.post("/login", (request, response) => {
 app.put("/course", (request, response) => {
   const logTag = "COURSE";
   logger.info(`[ ${logTag} ] course creation`);
-  const courseCreate = (token, name, sources, description, shortDescription) => {
+  const courseCreate = (token, name, sources, description, shortDescription, wish) => {
     authenticator.verify(token)
       .then((payload) => {
-        logger.info(`[ ${logTag} ] token verified`);
+        logger.info(`[ ${logTag} ] token verified ${wish}`);
         const action = "COURSE_CREATE";
         const username = payload.username;
         const riakData = {
@@ -166,7 +166,8 @@ app.put("/course", (request, response) => {
           name: name,
           sources: sources,
           description: description,
-          shortDescription: shortDescription
+          shortDescription: shortDescription,
+          wish: wish
         };
         handler.sendMessage("mongo", JSON.stringify(mongoData));
         uuidMap.set(uuid, response);
@@ -304,6 +305,7 @@ app.delete("/course/:id", (request, response) => {
       handler.sendMessage("riak", JSON.stringify(riakData));
 
       const mongoData = {
+        action: action,
         courseId: courseId
       };
       handler.sendMessage("mongo", JSON.stringify(mongoData));
@@ -326,6 +328,7 @@ const courseVerify = (request, response, onSuccess) => {
   const sources = body.sources;
   const description = body.description;
   const shortDescription = body.shortDescription || "";
+  const wish = body.wish || "";
 
   if (!name) {
     response.status(400)
@@ -341,7 +344,7 @@ const courseVerify = (request, response, onSuccess) => {
     return;
   }
 
-  onSuccess(token, name, sources, description, shortDescription);
+  onSuccess(token, name, sources, description, shortDescription, wish);
 }
 
 /**
@@ -490,7 +493,7 @@ app.post("/wish/:id", (request, response) => {
 /**
  *  Wish Delete
  */
-app.delete("/wish/:id", (request, resposne) => {
+app.delete("/wish/:id", (request, response) => {
   const token = request.get("Authorization");
   const wishId = request.params.id;
   const logTag = "WISH_DELETE"
@@ -505,6 +508,7 @@ app.delete("/wish/:id", (request, resposne) => {
       handler.sendMessage("riak", JSON.stringify(riakData));
 
       const mongoData = {
+        action: action,
         wishId: wishId
       };
       handler.sendMessage("mongo", JSON.stringify(mongoData));
@@ -569,6 +573,7 @@ app.post("/respond", (request, response) => {
       case "WISH_CREATE":
         logger.info(`[ ${logTag} ] responding to wish creation`);
         wishCreationResponder.respond(initResponse, body);
+        break;
       default:
         logger.warn(`[ ${logTag} ] Unrecognized action ${action}`);
         initResponse.status(500).send("Unexpected response action");
