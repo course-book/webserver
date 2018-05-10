@@ -32,6 +32,7 @@ const app = express();
 const PORT = process.env.PORT || 8080;
 const JWT_SECRET = process.env.JWT_SECRET || "course-book-secret";
 const MONGO_HOST = process.env.MONGO_HOST;
+const RIAK_HOST = process.env.RIAK_HOST;
 
 // Use Basic Logger. Have it override if setup completes.
 let logger = SimpleNodeLogger.createSimpleLogger();
@@ -546,6 +547,38 @@ const onTokenVerificationError = (logTag, error, response) => {
   response.status(401)
     .json({message: error.message});
 }
+
+/**
+ *  Stats on hits given an IP.
+ */
+app.get("/stats/registration/:ip", (request, response) => {
+  const logTag = "STATS"
+  const ip = request.params.ip;
+  logger.info(`[ ${logTag} ] fetching stats for ip ${ip}`);
+
+  const uri = encodeURI(`${RIAK_HOST}/registration/${ip}`);
+  const options = {
+    method: "GET",
+    uri: uri,
+    json: true
+  };
+  rp(options)
+    .then((riakResponse) => {
+      logger.info(`[ ${logTag} ] riak responded with ${JSON.stringify(riakResponse)}`);
+      if (riakResponse.isNotFound) {
+        response.status(404)
+          .send(`there are no registration data for this ip: ${ip}`);
+        return;
+      }
+      response.status(200)
+        .send({registrationAttempts: riakResponse.counterValue});
+    })
+    .catch((error) => {
+      logger.error(`[ ${logTag} ] ${error.message}`);
+      response.status(500)
+        .send({message: error.message})
+    });
+});
 
 /**
  *  Handle synchronous responses.
