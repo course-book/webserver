@@ -549,7 +549,7 @@ const onTokenVerificationError = (logTag, error, response) => {
 }
 
 /**
- *  Stats on hits given an IP.
+ *  Stats on registration attempts given an IP.
  */
 app.get("/stats/registration/:ip", (request, response) => {
   const logTag = "STATS"
@@ -572,6 +572,39 @@ app.get("/stats/registration/:ip", (request, response) => {
       }
       response.status(200)
         .send({registrationAttempts: riakResponse.counterValue});
+    })
+    .catch((error) => {
+      logger.error(`[ ${logTag} ] ${error.message}`);
+      response.status(500)
+        .send({message: error.message})
+    });
+});
+
+/**
+ *  Stats on user logins from given ip.
+ */
+app.get("/stats/login/:ip", (request, response) => {
+  const logTag = "STATS"
+  const ip = request.params.ip;
+  logger.info(`[ ${logTag} ] fetching stats for ip ${ip}`);
+
+  const uri = encodeURI(`${RIAK_HOST}/login/${ip}`);
+  const options = {
+    method: "GET",
+    uri: uri,
+    json: true
+  };
+  
+  rp(options)
+    .then((riakResponse) => {
+      logger.info(`[ ${logTag} ] riak responded with ${JSON.stringify(riakResponse)}`);
+      if (riakResponse.isNotFound) {
+        response.status(404)
+          .send(`there are no registration data for this ip: ${ip}`);
+        return;
+      }
+      response.status(200)
+        .send({loginAttempts: riakResponse.map.counters});
     })
     .catch((error) => {
       logger.error(`[ ${logTag} ] ${error.message}`);
