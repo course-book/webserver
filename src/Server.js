@@ -240,12 +240,11 @@ app.get("/course/:id", (request, response) => {
     method : "GET",
     uri : uri,
     json : true
-  }
+  };
 
   rp(options)
     .then((redisResponse) => {
       logger.info(`[ ${logTag} ] redis responded with ${JSON.stringify(redisResponse)}`);
-      let message = redisResponse;
       response.status(redisResponse.statusCode)
         .send(redisResponse.data);
       })
@@ -461,14 +460,14 @@ app.get("/wish/:id", (request, response) => {
   };
   rp(options)
     .then((redisResponse) => {
-      logger.info(`[ ${logTag} ] redis responded with ${redisResponse}`);
-      let message = redisResponse;
+      logger.info(`[ ${logTag} ] redis responded with ${JSON.stringify(redisResponse)}`);
       response.status(redisResponse.statusCode)
         .send(redisResponse.data);
       })
       .catch((error) => {
         logger.error(`[ ${logTag} ] ${error.message}`);
-        response.status(500).send({message: error.message})
+        response.status(500)
+          .send({message: error.message})
       });
 });
 
