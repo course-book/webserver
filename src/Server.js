@@ -299,9 +299,10 @@ app.delete("/course/:id", (request, response) => {
   authenticator.verify(token)
     .then((payload) => {
       const action = "COURSE_DELETE";
+      const username = payload.username;
       const riakData = {
         action: action,
-        id: courseId
+        id: username
       };
       handler.sendMessage("riak", JSON.stringify(riakData));
 
