@@ -244,10 +244,10 @@ app.get("/course/:id", (request, response) => {
 
   rp(options)
     .then((redisResponse) => {
-      logger.info(`[ ${logTag} ] redis responded with ${redisResponse}`);
+      logger.info(`[ ${logTag} ] redis responded with ${JSON.stringify(redisResponse)}`);
       let message = redisResponse;
       response.status(redisResponse.statusCode)
-        .send(redisResponse.message);
+        .send(redisResponse.data);
       })
       .catch((error) => {
         logger.error(`[ ${logTag} ] ${error.message}`);
@@ -282,6 +282,12 @@ app.post("/course/:id", (request, response) => {
           shortDescription: shortDescription
         };
         handler.sendMessage("mongo", JSON.stringify(mongoData));
+
+        const redisData = {
+          action: action,
+          id: courseId
+        };
+        handler.sendMessage("redis", JSON.stringify(redisData));
         response.status(202)
           .send("Course update has been queued for processing");
       })
@@ -313,6 +319,11 @@ app.delete("/course/:id", (request, response) => {
         courseId: courseId
       };
       handler.sendMessage("mongo", JSON.stringify(mongoData));
+      const redisData = {
+        action: action,
+        id: courseId
+      };
+      handler.sendMessage("redis", JSON.stringify(redisData));
       response.status(202).send("Course has been queued for deletion.");
     })
     .catch((error) => onTokenVerificationError(logTag, error, response));
@@ -453,7 +464,7 @@ app.get("/wish/:id", (request, response) => {
       logger.info(`[ ${logTag} ] redis responded with ${redisResponse}`);
       let message = redisResponse;
       response.status(redisResponse.statusCode)
-        .send(redisResponse.message);
+        .send(redisResponse.data);
       })
       .catch((error) => {
         logger.error(`[ ${logTag} ] ${error.message}`);
@@ -486,6 +497,12 @@ app.post("/wish/:id", (request, response) => {
           details: details,
         };
         handler.sendMessage("mongo", JSON.stringify(mongoData));
+
+        const redisData = {
+          action: action,
+          id: wishId
+        };
+        handler.sendMessage("redis", JSON.stringify(redisData));
         response.status(202).send("Wish update has been queued for processing.");
       })
       .catch((error) => onTokenVerificationError(logTag, error, response));
@@ -517,6 +534,12 @@ app.delete("/wish/:id", (request, response) => {
         wishId: wishId
       };
       handler.sendMessage("mongo", JSON.stringify(mongoData));
+
+      const redisData = {
+        action: action,
+        id: wishId
+      };
+      handler.sendMessage("redis", JSON.stringify(redisData));
       response.status(202).send("Wish has been queued for deletion.");
     })
     .catch((error) => onTokenVerificationError(logTag, error, response));
