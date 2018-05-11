@@ -302,7 +302,7 @@ app.delete("/course/:id", (request, response) => {
       const username = payload.username;
       const riakData = {
         action: action,
-        id: username
+        username: username
       };
       handler.sendMessage("riak", JSON.stringify(riakData));
 
