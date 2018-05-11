@@ -552,160 +552,182 @@ const onTokenVerificationError = (logTag, error, response) => {
  *  Stats on user logins from given ip.
  */
 app.get("/stats/login", (request, response) => {
+  const token = request.get("Authorization");
   const logTag = "STATS"
   const ip = request.ip;
   logger.info(`[ ${logTag} ] fetching stats for ip ${ip}`);
 
-  const uri = encodeURI(`${RIAK_HOST}/login/${ip}`);
-  const options = {
-    method: "GET",
-    uri: uri,
-    json: true
-  };
+  authenticator.verify(token)
+    .then((payload) => {
+      const uri = encodeURI(`${RIAK_HOST}/login/${ip}`);
+      const options = {
+        method: "GET",
+        uri: uri,
+        json: true
+      };
 
-  rp(options)
-    .then((riakResponse) => {
-      logger.info(`[ ${logTag} ] riak responded with ${JSON.stringify(riakResponse)}`);
-      if (riakResponse.isNotFound) {
-        response.status(404)
-          .send(`there are no login data for this ip: ${ip}`);
-        return;
-      }
-      response.status(200)
-        .send({attempts: riakResponse.map.counters});
+      rp(options)
+        .then((riakResponse) => {
+          logger.info(`[ ${logTag} ] riak responded with ${JSON.stringify(riakResponse)}`);
+          if (riakResponse.isNotFound) {
+            response.status(404)
+              .send(`there are no login data for this ip: ${ip}`);
+            return;
+          }
+          response.status(200)
+            .send({attempts: riakResponse.map.counters});
+        })
+        .catch((error) => {
+          logger.error(`[ ${logTag} ] ${error.message}`);
+          response.status(500)
+            .send({message: error.message});
+        });
     })
-    .catch((error) => {
-      logger.error(`[ ${logTag} ] ${error.message}`);
-      response.status(500)
-        .send({message: error.message})
-    });
+    .catch((error) => onTokenVerificationError(logTag, error, response));
 });
 
 /**
  *  Stats on registration attempts given an IP.
  */
 app.get("/stats/registration", (request, response) => {
+  const token = request.get("Authorization");
   const ip = request.ip;
   const uri = encodeURI(`${RIAK_HOST}/registration/${ip}`);
-  fetchCounters("REGISTRATION", ip, uri, response);
+  fetchCounters("REGISTRATION", ip, uri, token, response);
 });
 
 /**
  *  Stats on course creation from given username.
  */
 app.get("/stats/course/create/:username", (request, response) => {
+  const token = request.get("Authorization");
   const username = request.params.username;
   const uri = encodeURI(`${RIAK_HOST}/course/create/${username}`);
-  fetchCounters("COURSE_CREATE", username, uri, response);
+  fetchCounters("COURSE_CREATE", username, uri, token, response);
 });
 
 /**
  *  Stats on course fetch from given courseId.
  */
 app.get("/stats/course/fetch/:courseId", (request, response) => {
+  const token = request.get("Authorization");
   const courseId = request.params.courseId;
   const uri = encodeURI(`${RIAK_HOST}/course/fetch/${courseId}`);
-  fetchCounters("COURSE_FETCH", courseId, uri, response);
+  fetchCounters("COURSE_FETCH", courseId, uri, token, response);
 });
 
 /**
  *  Stats on course fetch on all courses.
  */
 app.get("/stats/course/fetch", (request, response) => {
+  const token = request.get("Authorization");
   const courseId = "ALL";
   const uri = encodeURI(`${RIAK_HOST}/course/fetch/${courseId}`);
-  fetchCounters("COURSE_FETCH", courseId, uri, response);
+  fetchCounters("COURSE_FETCH", courseId, uri, token, response);
 });
 
 /**
  *  Stats on course update from given courseId.
  */
 app.get("/stats/course/update/:courseId", (request, response) => {
+  const token = request.get("Authorization");
   const courseId = request.params.courseId;
   const uri = encodeURI(`${RIAK_HOST}/course/fetch/${courseId}`);
-  fetchCounters("COURSE_FETCH", courseId, uri, response);
+  fetchCounters("COURSE_FETCH", courseId, uri, token, response);
 });
 
 /**
  *  Stats on course deletion from given username.
  */
 app.get("/stats/course/delete/:username", (request, response) => {
+  const token = request.get("Authorization");
   const username = request.params.username;
   const uri = encodeURI(`${RIAK_HOST}/course/delete/${username}`);
-  fetchCounters("COURSE_DELETE", username, uri, response);
+  fetchCounters("COURSE_DELETE", username, uri, token, response);
 });
 
 /**
  *  Stats on wish creation from given username.
  */
 app.get("/stats/wish/create/:username", (request, response) => {
+  const token = request.get("Authorization");
   const username = request.params.username;
   const uri = encodeURI(`${RIAK_HOST}/wish/create/${username}`);
-  fetchCounters("COURSE_CREATE", username, uri, response);
+  fetchCounters("COURSE_CREATE", username, uri, token, response);
 });
 
 /**
  *  Stats on wish fetch from given wishId.
  */
 app.get("/stats/wish/fetch/:wishId", (request, response) => {
+  const token = request.get("Authorization");
   const wishId = request.params.wishId;
   const uri = encodeURI(`${RIAK_HOST}/wish/fetch/${wishId}`);
-  fetchCounters("COURSE_FETCH", wishId, uri, response);
+  fetchCounters("COURSE_FETCH", wishId, uri, token, response);
 });
 
 /**
  *  Stats on wish fetch on all wishes.
  */
 app.get("/stats/wish/fetch", (request, response) => {
+  const token = request.get("Authorization");
   const wishId = "ALL";
   const uri = encodeURI(`${RIAK_HOST}/wish/fetch/${wishId}`);
-  fetchCounters("COURSE_FETCH", wishId, uri, response);
+  fetchCounters("COURSE_FETCH", wishId, uri, token, response);
 });
 
 /**
  *  Stats on wish update from given wishId.
  */
 app.get("/stats/wish/update/:wishId", (request, response) => {
+  const token = request.get("Authorization");
   const wishId = request.params.wishId;
   const uri = encodeURI(`${RIAK_HOST}/wish/fetch/${wishId}`);
-  fetchCounters("WISH_FETCH", wishId, uri, response);
+  fetchCounters("WISH_FETCH", wishId, uri, token, response);
 });
 
 /**
  *  Stats on wish deletion from given username.
  */
 app.get("/stats/wish/delete/:username", (request, response) => {
+  const token = request.get("Authorization");
   const username = request.params.username;
   const uri = encodeURI(`${RIAK_HOST}/wish/delete/${username}`);
-  fetchCounters("WISH_DELETE", username, uri, response);
+  fetchCounters("WISH_DELETE", username, uri, token, response);
 });
 
-const fetchCounters = (type, param, uri, response) => {
-  const logTag = "STATS"
-  logger.info(`[ ${logTag} ] fetching stats for ${type} ${param}`);
-
-  const options = {
-    method: "GET",
-    uri: uri,
-    json: true
-  };
-  rp(options)
-    .then((riakResponse) => {
-      logger.info(`[ ${logTag} ] riak responded with ${JSON.stringify(riakResponse)}`);
-      if (riakResponse.isNotFound) {
-        response.status(404)
+/**
+ *  FetchCounter helper method
+ */
+const fetchCounters = (type, param, uri, token, response) => {
+  authenticator.verify(token)
+    .then((payload) => {
+      const logTag = "STATS"
+      logger.info(`[ ${logTag} ] fetching stats for ${type} ${param}`);
+      const options = {
+        method: "GET",
+        uri: uri,
+        json: true
+      };
+      rp(options)
+      .then((riakResponse) => {
+        logger.info(`[ ${logTag} ] riak responded with ${JSON.stringify(riakResponse)}`);
+        if (riakResponse.isNotFound) {
+          response.status(404)
           .send({message: `there are no ${type} stats for: ${param}`});
-        return;
-      }
-      response.status(200)
+          return;
+        }
+        response.status(200)
         .send({count: riakResponse.counterValue});
-    })
-    .catch((error) => {
-      logger.error(`[ ${logTag} ] ${error.message}`);
-      response.status(500)
+      })
+      .catch((error) => {
+        logger.error(`[ ${logTag} ] ${error.message}`);
+        response.status(500)
         .send({message: error.message})
-    });
-}
+      });
+    })
+    .catch((error) => onTokenVerificationError(logTag, error, response));
+};
 
 /**
  *  Handle synchronous responses.
