@@ -502,9 +502,10 @@ app.delete("/wish/:id", (request, response) => {
   authenticator.verify(token)
     .then((payload) => {
       const action = "WISH_DELETE";
+      const username = payload.username;
       const riakData = {
         action: action,
-        id: wishId
+        username: username
       };
       handler.sendMessage("riak", JSON.stringify(riakData));
 
@@ -714,16 +715,16 @@ const fetchCounters = (type, param, uri, token, response) => {
         logger.info(`[ ${logTag} ] riak responded with ${JSON.stringify(riakResponse)}`);
         if (riakResponse.isNotFound) {
           response.status(404)
-          .send({message: `there are no ${type} stats for: ${param}`});
+            .send({message: `there are no ${type} stats for: ${param}`});
           return;
         }
         response.status(200)
-        .send({count: riakResponse.counterValue});
+          .send({count: riakResponse.counterValue});
       })
       .catch((error) => {
         logger.error(`[ ${logTag} ] ${error.message}`);
         response.status(500)
-        .send({message: error.message})
+          .send({message: error.message})
       });
     })
     .catch((error) => onTokenVerificationError(logTag, error, response));
