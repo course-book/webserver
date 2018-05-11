@@ -551,9 +551,9 @@ const onTokenVerificationError = (logTag, error, response) => {
 /**
  *  Stats on user logins from given ip.
  */
-app.get("/stats/login/:ip", (request, response) => {
+app.get("/stats/login", (request, response) => {
   const logTag = "STATS"
-  const ip = request.params.ip;
+  const ip = request.ip;
   logger.info(`[ ${logTag} ] fetching stats for ip ${ip}`);
 
   const uri = encodeURI(`${RIAK_HOST}/login/${ip}`);
@@ -584,8 +584,8 @@ app.get("/stats/login/:ip", (request, response) => {
 /**
  *  Stats on registration attempts given an IP.
  */
-app.get("/stats/registration/:ip", (request, response) => {
-  const ip = request.params.ip;
+app.get("/stats/registration", (request, response) => {
+  const ip = request.ip;
   const uri = encodeURI(`${RIAK_HOST}/registration/${ip}`);
   fetchCounters("REGISTRATION", ip, uri, response);
 });
