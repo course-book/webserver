@@ -293,6 +293,7 @@ app.post("/course/:id", (request, response) => {
  *  Course Delete
  */
 app.delete("/course/:id", (request, response) => {
+  const logTag = "COURSE";
   const token = request.get("Authorization");
   const courseId = request.params.id;
 
