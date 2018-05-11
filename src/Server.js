@@ -237,9 +237,9 @@ app.get("/course/:id", (request, response) => {
   handler.sendMessage("riak", JSON.stringify(riakData));
   const uri = encodeURI(`${REDIS_HOST}/course/${courseId}`);
   const options = {
-    method = "GET",
-    uri = uri,
-    json = true
+    method : "GET",
+    uri : uri,
+    json : true
   }
 
   rp(options)
