@@ -33,6 +33,7 @@ const PORT = process.env.PORT || 8080;
 const JWT_SECRET = process.env.JWT_SECRET || "course-book-secret";
 const MONGO_HOST = process.env.MONGO_HOST;
 const RIAK_HOST = process.env.RIAK_HOST;
+const REDIS_HOST = process.env.REDIS_HOST;
 
 // Use Basic Logger. Have it override if setup completes.
 let logger = SimpleNodeLogger.createSimpleLogger();
@@ -234,24 +235,24 @@ app.get("/course/:id", (request, response) => {
     id: courseId
   };
   handler.sendMessage("riak", JSON.stringify(riakData));
-
-  const uri = encodeURI(`${MONGO_HOST}/course/${courseId}`);
+  const uri = encodeURI(`${REDIS_HOST}/course/${courseId}`);
   const options = {
-    method: "GET",
-    uri: uri,
-    json: true
-  };
+    method = "GET",
+    uri = uri,
+    json = true
+  }
+
   rp(options)
-    .then((mongoResponse) => {
-      logger.info(`[ ${logTag} ] mongo responded with ${JSON.stringify(mongoResponse)}`);
-      let message = mongoResponse;
-      response.status(mongoResponse.statusCode)
-        .send(mongoResponse.message);
-    })
-    .catch((error) => {
-      logger.error(`[ ${logTag} ] ${error.message}`);
-      response.status(500).send({message: error.message})
-    });
+    .then((redisResponse) => {
+      logger.info(`[ ${logTag} ] redis responded with ${redisResponse}`);
+      let message = redisResponse;
+      response.status(redisResponse.statusCode)
+        .send(redisResponse.message);
+      })
+      .catch((error) => {
+        logger.error(`[ ${logTag} ] ${error.message}`);
+        response.status(500).send({message : error.message});
+      });
 });
 
 /**
@@ -439,23 +440,23 @@ app.get("/wish/:id", (request, response) => {
   };
   handler.sendMessage("riak", JSON.stringify(riakData));
 
-  const uri = encodeURI(`${MONGO_HOST}/wish/${wishId}`);
+  const uri = encodeURI(`${REDIS_HOST}/wish/${wishId}`);
   const options = {
     method: "GET",
     uri: uri,
     json: true
   };
   rp(options)
-    .then((mongoResponse) => {
-      logger.info(`[ ${logTag} ] mongo responded with ${JSON.stringify(mongoResponse)}`);
-      let message = mongoResponse;
-      response.status(mongoResponse.statusCode)
-        .send(mongoResponse.message);
-    })
-    .catch((error) => {
-      logger.error(`[ ${logTag} ] ${error.message}`);
-      response.status(500).send({message: error.message})
-    });
+    .then((redisResponse) => {
+      logger.info(`[ ${logTag} ] redis responded with ${redisResponse}`);
+      let message = redisResponse;
+      response.status(redisResponse.statusCode)
+        .send(redisResponse.message);
+      })
+      .catch((error) => {
+        logger.error(`[ ${logTag} ] ${error.message}`);
+        response.status(500).send({message: error.message})
+      });
 });
 
 /**
