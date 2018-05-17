@@ -11,7 +11,7 @@ class CreationResponder {
         response.status(body.statusCode)
           .send(body.message);
         break;
-      case (100): // processing
+      case (102): // processing
       case (500): // failed to insert
       case (409): // duplicate course
         response.status(body.statusCode)
