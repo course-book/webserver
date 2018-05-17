@@ -545,6 +545,47 @@ app.delete("/wish/:id", (request, response) => {
 });
 
 /**
+  * User pagination
+**/
+app.get("/users", (request, response) => {
+  const logTag = "USER";
+  const page = request.query.page || 0;
+  const perPage = request.query.perPage || 10;
+  const search = request.query.search;
+
+  logger.info(`[ ${logTag} ] getting users on page ${page} limit ${perPage}`);
+
+  const riakData = {
+    action: "USER_FETCH",
+    id: "ALL"
+  };
+  handler.sendMessage("riak", JSON.stringify(riakData));
+
+  let uri = `${MONGO_HOST}/users?page=${page}&perPage=${perPage}`;
+  if (search) {
+    uri = `${uri}&search=${search}`;
+  }
+
+  uri = encodeURI(uri);
+  const options = {
+    method: "GET",
+    uri: uri,
+    json: true
+  };
+  rp(options)
+    .then((mongoResponse) => {
+      logger.info(`[ ${logTag} ] mongo responded with ${JSON.stringify(mongoResponse)}`);
+      let message = mongoResponse;
+      response.status(mongoResponse.statusCode)
+        .send(mongoResponse.message);
+    })
+    .catch((error) => {
+      logger.error(`[ ${logTag} ] ${error.message}`);
+      response.status(500).send({message: error.message})
+    });
+})
+
+/**
  *  Verify Wish request body.
  *  If invalid, 400 with a help message will be sent.
  *  If valid, onSuccess will be called with (token, name, details)
