@@ -874,7 +874,7 @@ const fetchCounters = (type, param, uri, token, response) => {
  */
 app.post("/respond", (request, response) => {
   const logTag = "RESPOND";
-  logger.info("[ ${logTag} ] respond to user");
+  logger.info(`[ ${logTag} ] respond to user`);
   const body = request.body;
   const uuid = body.uuid;
   const action = body.action;
@@ -883,6 +883,7 @@ app.post("/respond", (request, response) => {
 
   const initResponse = uuidMap.get(uuid);
   if (initResponse) {
+    logger.info(`[ ${logTag} ] forwarding response`);
     switch (action) {
       case "REGISTRATION":
         logger.info(`[ ${logTag} ] responding to registration`);
