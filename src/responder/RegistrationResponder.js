@@ -13,7 +13,7 @@ class RegistrationResponder {
         response.status(body.statusCode)
           .send(token);
         break;
-      case (100): // processing
+      case (102): // processing
       case (500): // failed to insert
       case (409): // duplicate username
         response.status(body.statusCode)
