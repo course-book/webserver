@@ -6,7 +6,6 @@ class CreationResponder {
   }
 
   respond(response, body) {
-    console.log(body);
     switch (body.statusCode) {
       case (201): // success
         response.status(body.statusCode)
