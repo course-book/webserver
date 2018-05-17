@@ -173,6 +173,7 @@ app.put("/course", (request, response) => {
         };
         handler.sendMessage("mongo", JSON.stringify(mongoData));
         uuidMap.set(uuid, response);
+        logger.info(`[ ${logTag} ] ${uuid}`);
         // Note: Mongo needs to process this and verify that it is not a duplicate.
       })
       .catch((error) => onTokenVerificationError(logTag, error, response));

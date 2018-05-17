@@ -6,12 +6,13 @@ class CreationResponder {
   }
 
   respond(response, body) {
+    console.log(body);
     switch (body.statusCode) {
       case (201): // success
         response.status(body.statusCode)
           .send(body.message);
         break;
-      case (102): // processing
+      case (503): // processing
       case (500): // failed to insert
       case (409): // duplicate course
         response.status(body.statusCode)
