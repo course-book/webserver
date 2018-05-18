@@ -529,7 +529,7 @@ app.post("/wish/:id", (request, response) => {
           action: action,
           wishId: wishId,
           name: name,
-          details: details,
+          details: details
         };
         handler.sendMessage("mongo", JSON.stringify(mongoData));
 
@@ -566,7 +566,9 @@ app.post("/wish/notify/:id", (request, response) => {
 
         const mongoData = {
           action: action,
-          wishId: wishId
+          wishId: wishId,
+          name: name,
+          details: details
         };
         handler.sendMessage("mongo", JSON.stringify(mongoData));
 
