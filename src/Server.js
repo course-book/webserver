@@ -473,6 +473,41 @@ app.get("/wish/:id", (request, response) => {
 });
 
 /**
+ *  Wish Match
+ */
+app.get("/wish/user/:username", (request, response) => {
+  const logTag = "WISH_MATCH"
+  const username = request.params.username;
+  logger.info(`[ ${logTag} ] wish ${username} match`);
+
+  const riakData = {
+    action: "WISH_MATCH",
+    id: "ALL"
+  };
+  handler.sendMessage("riak", JSON.stringify(riakData));
+
+  let uri = `${MONGO_HOST}/wish/user/${username}`;
+
+  uri = encodeURI(uri);
+  const options = {
+    method: "GET",
+    uri: uri,
+    json: true
+  };
+  rp(options)
+    .then((mongoResponse) => {
+      logger.info(`[ ${logTag} ] mongo responded with ${JSON.stringify(mongoResponse)}`);
+      let message = mongoResponse;
+      response.status(mongoResponse.statusCode)
+        .send(mongoResponse.message);
+    })
+    .catch((error) => {
+      logger.error(`[ ${logTag} ] ${error.message}`);
+      response.status(500).send({message: error.message})
+    });
+});
+
+/**
  *  Wish Update
  */
 app.post("/wish/:id", (request, response) => {
@@ -494,7 +529,7 @@ app.post("/wish/:id", (request, response) => {
           action: action,
           wishId: wishId,
           name: name,
-          details: details,
+          details: details
         };
         handler.sendMessage("mongo", JSON.stringify(mongoData));
 
@@ -510,6 +545,46 @@ app.post("/wish/:id", (request, response) => {
 
   wishVerify(request, response, updateWish);
 });
+
+/**
+ *  Wish Notify
+ */
+app.post("/wish/notify/:id", (request, response) => {
+  const logTag = "WISH"
+  const wishId = request.params.id;
+  logger.info(`[ ${logTag} ] wish ${wishId} mark notified`);
+
+  const updateWish = (token, name, details) => {
+    authenticator.verify(token)
+      .then((payload) => {
+        const action = "WISH_NOTIFY";
+        const riakData = {
+          action: action,
+          id: wishId
+        };
+        handler.sendMessage("riak", JSON.stringify(riakData));
+
+        const mongoData = {
+          action: action,
+          wishId: wishId,
+          name: name,
+          details: details
+        };
+        handler.sendMessage("mongo", JSON.stringify(mongoData));
+
+        const redisData = {
+          action: action,
+          id: wishId
+        };
+        handler.sendMessage("redis", JSON.stringify(redisData));
+        response.status(202).send("Wish update has been queued for processing.");
+      })
+      .catch((error) => onTokenVerificationError(logTag, error, response));
+  }
+
+  wishVerify(request, response, updateWish);
+});
+
 
 /**
  *  Wish Delete
